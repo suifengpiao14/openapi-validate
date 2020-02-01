@@ -1,0 +1,16 @@
+[doc]
+path = "doc"
+[http]
+port = 8000 
+
+[jwt]
+default = false
+key = "secret"
+algo = "HS256"
+
+[ssl]
+mode = "disable"
+sslcert = "./PATH"
+sslkey = "./PATH"
+sslrootcert = "./PATH"
+

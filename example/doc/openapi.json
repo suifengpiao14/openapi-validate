@@ -1,0 +1,213 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "信用卡微服务接口",
+      "description": "地址：http://credit.microservice.com",
+      "contact": {
+        "email": "2912150017@qq.com"
+      },
+      "version": "1.0.0"
+    },
+    "tags": [
+      {
+        "name": "api",
+        "description": "客户端 api 接口"
+      },
+      {
+        "name": "backend",
+        "description": "后台 api 接口"
+      }
+    ],
+    "components": {
+      "responses": {
+        "NotFound": {
+          "description": "not found"
+        },
+        "BadRequest": {
+          "description": "not found"
+        },
+        "NoContent": {
+          "description": "no content"
+        },
+        "Normal": {
+          "description": "OK",
+          "content":{
+            "application/json":{
+              "schema":{
+                "type":"object",
+                "additionalProperties":false,
+                "required":["name","user"],
+                "properties":{
+                  "name":{
+                    "type":"string"
+                  },
+                  "user":{
+                    "type":"array",
+                    "items":{
+                      "type":"object",
+                      "additionalProperties":false,
+                      "properties":{
+                        "id":{
+                          "type":"integer"
+                        },
+                        "name":{
+                          "type":"string"
+                        }
+                      }
+                    }
+                    
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "schemas": {
+        "error": {
+          "required": [
+            "status_code",
+            "message"
+          ],
+          "properties": {
+            "status_code": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "message": {
+              "description": "错误提示",
+              "type": "string"
+            }
+          }
+        },
+        "noContent": {},
+        "Normal": {
+          "required": [
+            "status_code",
+            "message"
+          ],
+          "properties": {
+            "status_code": {
+              "description": "200",
+              "type": "integer",
+              "format": "int32"
+            },
+            "message": {
+              "description": "OK",
+              "type": "string"
+            }
+          }
+        },
+        "link": {
+          "properties": {
+            "first": {
+              "description": "第一页链接地址",
+              "type": "string"
+            },
+            "last": {
+              "description": "最后一页链接地址",
+              "type": "string"
+            },
+            "prev": {
+              "description": "上一页链接地址",
+              "type": "string"
+            },
+            "next": {
+              "description": "下一页链接地址",
+              "type": "string"
+            }
+          }
+        },
+        "meta": {
+          "properties": {
+            "current_page": {
+              "description": "当前页面",
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "last_page": {
+              "description": "1",
+              "type": "integer",
+              "format": "int32"
+            },
+            "from": {
+              "description": "前一页",
+              "type": "integer",
+              "format": "int32"
+            },
+            "to": {
+              "description": "后一页",
+              "type": "integer",
+              "format": "int32"
+            },
+            "path": {
+              "description": "请求地址",
+              "type": "string"
+            },
+            "per_page": {
+              "description": "没页请求数量",
+              "type": "integer",
+              "default": "20"
+            },
+            "total": {
+              "description": "总数",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "/api/v1/credit/card": {
+        "get": {
+          "tags": [
+            "api"
+          ],
+          "summary": "指定日期选择卡片",
+          "description": "指定日期选择卡片",
+          "parameters": [
+            {
+              "name": "startDate",
+              "in": "query",
+              "description": "日期格式Y-m-d，默认当天",
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "externalDocs":{
+                  "description": "日期格式",
+                  "url": "#",
+                  "x-error":{
+                    "code":400001,
+                    "msg":"日期格式错误"
+                  }
+                }
+              }
+            },
+            {
+              "name": "endDate",
+              "in": "query",
+              "description": "日期格式Y-m-d，默认当天",
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "default":"2019-12-29"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/Normal"
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            }
+          }
+        }
+      }
+    }
+  }
+  
