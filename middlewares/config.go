@@ -16,8 +16,8 @@ var (
 		negroni.Handler(negroni.NewRecovery()),
 		negroni.Handler(negroni.NewLogger()),
 		// 验证请求参数
-		//ValidationRequest(),
-		//ValidateResponse(),
+		ValidationRequest(),
+		ValidateResponse(),
 		HandlerSet(),
 	}
 )

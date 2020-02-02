@@ -31,6 +31,11 @@ type ResponseBean struct {
 
 var docFile = "doc/openapi.json"
 
+func init() {
+	// desabled details schema error
+	openapi3.SchemaErrorDetailsDisabled = true
+}
+
 // ValidationRequest validate request params
 func ValidationRequest() negroni.Handler {
 	return negroni.HandlerFunc(func(res http.ResponseWriter, req *http.Request, next http.HandlerFunc) {
@@ -84,6 +89,7 @@ func ValidateResponse() negroni.Handler {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
+		responseValidationInput.SetBodyBytes(respBody)
 
 		if err = openapi3filter.ValidateResponse(nil, responseValidationInput); err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)

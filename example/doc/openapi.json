@@ -1,21 +1,17 @@
 {
     "openapi": "3.0.0",
     "info": {
-      "title": "信用卡微服务接口",
-      "description": "地址：http://credit.microservice.com",
+      "title": "请求验证服务",
+      "description": "通过openapi json schema 验证请求参数、格式化请求参数、返回参数",
       "contact": {
         "email": "2912150017@qq.com"
       },
-      "version": "1.0.0"
+      "version": "0.0.1"
     },
     "tags": [
       {
         "name": "api",
-        "description": "客户端 api 接口"
-      },
-      {
-        "name": "backend",
-        "description": "后台 api 接口"
+        "description": "api接口"
       }
     ],
     "components": {
@@ -35,28 +31,7 @@
             "application/json":{
               "schema":{
                 "type":"object",
-                "additionalProperties":false,
-                "required":["name","user"],
                 "properties":{
-                  "name":{
-                    "type":"string"
-                  },
-                  "user":{
-                    "type":"array",
-                    "items":{
-                      "type":"object",
-                      "additionalProperties":false,
-                      "properties":{
-                        "id":{
-                          "type":"integer"
-                        },
-                        "name":{
-                          "type":"string"
-                        }
-                      }
-                    }
-                    
-                  }
                 }
               }
             }
@@ -64,6 +39,28 @@
         }
       },
       "schemas": {
+        "doc":{
+          "type":"string",
+          "description":"openapi json 文档地址（文件地址或者url）"
+        },
+        "method":{
+          "type":"string",
+          "description":"请求方法"
+        },
+        "url":{
+          "type":"string",
+          "description":"请求地址"
+        },
+        "contentType":{
+          "type":"string",
+          "description":"请求内容格式",
+          "enum":["application/json"]
+        },
+        "body":{
+          "type":"string",
+          "description":"请求内容"
+        },
+
         "error": {
           "required": [
             "status_code",
@@ -159,42 +156,101 @@
       }
     },
     "paths": {
-      "/api/v1/credit/card": {
-        "get": {
+      "/api/v1/validate/request": {
+        "post": {
           "tags": [
             "api"
           ],
-          "summary": "指定日期选择卡片",
-          "description": "指定日期选择卡片",
-          "parameters": [
-            {
-              "name": "startDate",
-              "in": "query",
-              "description": "日期格式Y-m-d，默认当天",
-              "schema": {
-                "type": "string",
-                "format": "date",
-                "externalDocs":{
-                  "description": "日期格式",
-                  "url": "#",
-                  "x-error":{
-                    "code":400001,
-                    "msg":"日期格式错误"
+          "summary": "验证请求参数",
+          "description": "验证请求参数，返回格式话的请求参数",
+          "requestBody":{
+            "content":{
+              "application/json":{
+                "schema":{
+                  "type":"object",
+                  "required":["doc","request"],
+                  "properties":{
+                    "doc":{"$ref":"#/components/schemas/doc"},
+                    "request":{
+                      "type":"object",
+                      "description":"请求体",
+                      "required":["method","url","contentType"],
+                      "properties":{
+                        "method":{"$ref":"#/components/schemas/method"},
+                        "url":{"$ref":"#/components/schemas/url"},
+                        "contentType":{"$ref":"#/components/schemas/contentType"},
+                        "body":{"$ref":"#/components/schemas/body"}
+                      }
+                    },
+                    "response":{
+                      "type":"object",
+                      "description":"响应体",
+                      "properties":{
+                        "contentType":{"$ref":"#/components/schemas/contentType"},
+                        "body":{"$ref":"#/components/schemas/body"}
+  
+                      }
+                    }
+                  }
+                  
+                }
+              }
+            }
+          },
+
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/Normal"
+            },
+            "400": {
+              "$ref": "#/components/responses/BadRequest"
+            },
+            "404": {
+              "$ref": "#/components/responses/NotFound"
+            }
+          }
+        }
+      },
+      "/api/v1/validate/response": {
+        "post": {
+          "tags": [
+            "api"
+          ],
+          "summary": "验证返回体",
+          "description": "验证返回体，返回格式化的请求响应体",
+          "requestBody":{
+            "content":{
+              "application/json":{
+                "schema":{
+                  "required":["doc","request","response"],
+                  "properties":{
+                    "doc":{"$ref":"#/components/schemas/doc"},
+                    "request":{
+                      "type":"object",
+                      "description":"请求体",
+                      "required":["method","url","contentType"],
+                      "properties":{
+                        "method":{"$ref":"#/components/schemas/method"},
+                        "url":{"$ref":"#/components/schemas/url"},
+                        "contentType":{"$ref":"#/components/schemas/contentType"},
+                        "body":{"$ref":"#/components/schemas/body"}
+                      }
+                    },
+                    "response":{
+                      "type":"object",
+                      "description":"响应体",
+                      "required":["contentType","body"],
+                      "properties":{
+                        "contentType":{"$ref":"#/components/schemas/contentType"},
+                        "body":{"$ref":"#/components/schemas/body"}
+                      }
+                    }
                   }
                 }
               }
-            },
-            {
-              "name": "endDate",
-              "in": "query",
-              "description": "日期格式Y-m-d，默认当天",
-              "schema": {
-                "type": "string",
-                "format": "date",
-                "default":"2019-12-29"
-              }
             }
-          ],
+          },
+
           "responses": {
             "200": {
               "$ref": "#/components/responses/Normal"
