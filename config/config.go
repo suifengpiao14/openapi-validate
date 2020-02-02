@@ -31,7 +31,7 @@ type Config struct {
 	JWTKey           string
 	JWTAlgo          string
 	MigrationsPath   string
-	DocPath          string
+	DocAdapter       string
 	CORSAllowOrigin  []string
 	CORSAllowHeaders []string
 	Debug            bool
@@ -116,7 +116,7 @@ func Parse(cfg *Config) (err error) {
 	cfg.SSLRootCert = viper.GetString("ssl.rootcert")
 	cfg.JWTKey = viper.GetString("jwt.key")
 	cfg.JWTAlgo = viper.GetString("jwt.algo")
-	cfg.DocPath = viper.GetString("doc.path")
+	cfg.DocAdapter = viper.GetString("doc.adapter")
 	cfg.CORSAllowOrigin = viper.GetStringSlice("cors.alloworigin")
 	cfg.CORSAllowHeaders = viper.GetStringSlice("cors.allowheaders")
 	cfg.Debug = viper.GetBool("debug")
@@ -135,11 +135,5 @@ func Load() {
 	ServerConfig = &Config{}
 	if err := Parse(ServerConfig); err != nil {
 		panic(err)
-	}
-
-	if _, err := os.Stat(ServerConfig.DocPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(ServerConfig.DocPath, 0700); os.IsNotExist(err) {
-			log.Errorf("Queries directory %s is not created", ServerConfig.DocPath)
-		}
 	}
 }

@@ -1,5 +1,5 @@
 [doc]
-path = "doc"
+adapter="file"
 [http]
 port = 8000 
 

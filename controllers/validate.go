@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/suifengpiao14/openapi-validate/adapters"
-	"github.com/suifengpiao14/openapi-validate/config"
 )
 
 //Validate controller interface
@@ -35,6 +35,7 @@ type JsonResponse struct {
 }
 
 type JsonHTTP struct {
+	Doc      string        `json:"doc"`
 	Request  *JsonRequest  `json:"request"`
 	Response *JsonResponse `json:"response,omitempty"`
 }
@@ -46,27 +47,33 @@ func NewValidate() Validate {
 
 //Request openapi request
 func (validate *validate) Request(w http.ResponseWriter, req *http.Request) {
-	newReq, err := validate.constructNewRequest(req)
+	jsonHTTP, err := validate.getRequestBody(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	filename := fmt.Sprintf("%s%s", config.ServerConfig.DocPath, "/openapi.json")
-	doc, err := ioutil.ReadFile(filename)
+	newReq, err := validate.constructNewRequest(jsonHTTP)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	adapterOpenapi := &adapters.Openapi{
-		Doc:     doc,
 		Request: newReq,
 	}
-	requestValidationInput, err := adapterOpenapi.GetRequestValidationInput()
+	adapterOpenapi.Doc, err = adapterOpenapi.LoadDoc(jsonHTTP.Doc)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := adapterOpenapi.ValidateRequest(requestValidationInput); err != nil {
+
+	requestValidationInput, err := adapterOpenapi.GetRequestValidationInput()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := openapi3filter.ValidateRequest(nil, requestValidationInput); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -83,44 +90,52 @@ func (validate *validate) Request(w http.ResponseWriter, req *http.Request) {
 
 //Response validate response
 func (validate *validate) Response(w http.ResponseWriter, req *http.Request) {
-	newReq, err := validate.constructNewRequest(req)
+	jsonHTTP, err := validate.getRequestBody(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if newReq.Response == nil {
+
+	if jsonHTTP.Response == nil {
 		err := fmt.Errorf("response must be set ")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	filename := fmt.Sprintf("%s%s", config.ServerConfig.DocPath, "/openapi.json")
-	doc, err := ioutil.ReadFile(filename)
+
+	newReq, err := validate.constructNewRequest(jsonHTTP)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	adapterOpenapi := &adapters.Openapi{
-		Doc:     doc,
 		Request: newReq,
 	}
+	adapterOpenapi.Doc, err = adapterOpenapi.LoadDoc(jsonHTTP.Doc)
 	responseValidationInput, err := adapterOpenapi.GetResponseValidationInput()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = adapterOpenapi.ValidateResponse(responseValidationInput)
+	var data []byte
+	defer adapterOpenapi.Request.Response.Body.Close()
+	data, err = ioutil.ReadAll(adapterOpenapi.Request.Response.Body)
 	if err != nil {
+		return
+	}
+	responseValidationInput.SetBodyBytes(data)
+
+	if err := openapi3filter.ValidateResponse(nil, responseValidationInput); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var data []byte
+
 	data, err = ioutil.ReadAll(responseValidationInput.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer newReq.Response.Body.Close()
-
 	key := "Content-Type"
 	headerMap := newReq.Response.Header
 	if headerMap != nil {
@@ -133,20 +148,25 @@ func (validate *validate) Response(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (validate *validate) constructNewRequest(req *http.Request) (newReq *http.Request, err error) {
+func (validate *validate) getRequestBody(req *http.Request) (jsonHTTP *JsonHTTP, err error) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return
 	}
-	jsonHTTP := &JsonHTTP{}
+	jsonHTTP = &JsonHTTP{}
 	if err = json.Unmarshal(body, jsonHTTP); err != nil {
 		return
 	}
-	if jsonHTTP.Request == nil {
+
+	if jsonHTTP.Doc == "" || jsonHTTP.Request == nil {
 		err = fmt.Errorf("bad request body")
 		return
 	}
 	jsonHTTP.Request.Method = strings.ToUpper(jsonHTTP.Request.Method)
+	return
+}
+
+func (validate *validate) constructNewRequest(jsonHTTP *JsonHTTP) (newReq *http.Request, err error) {
 	requestBody := strings.NewReader(jsonHTTP.Request.Body)
 	newReq, err = http.NewRequest(jsonHTTP.Request.Method, jsonHTTP.Request.URL, requestBody)
 	if err != nil {

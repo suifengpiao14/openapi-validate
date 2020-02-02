@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -15,6 +16,7 @@ import (
 type Validator interface {
 	ValidateRequest() (err error)
 	ValidateResponse() (err error)
+	LoadDoc(location string) (doc []byte, err error)
 }
 
 //Openapi object
@@ -30,27 +32,23 @@ type Openapi struct {
 	NewResponseBody  []byte
 }
 
-var bodyDecoders = make(map[string]openapi3filter.BodyDecoder)
+//var bodyDecoders = make(map[string]openapi3filter.BodyDecoder)
 
-func (openapi *Openapi) ValidateRequest(requestValidationInput *openapi3filter.RequestValidationInput) (err error) {
-	if err = openapi3filter.ValidateRequest(nil, requestValidationInput); err != nil {
-		return
+//LoadDoc load openapi doc
+func (openapi *Openapi) LoadDoc(location string) (doc []byte, err error) {
+	//if has prefix http ,get doc from url
+	if strings.HasPrefix(location, "http") {
+		resp, httErr := http.Get(location)
+		if httErr != nil {
+			err = httErr
+			return
+		}
+		defer resp.Body.Close()
+		doc, err = ioutil.ReadAll(resp.Body)
 	}
+	filename := location
+	doc, err = ioutil.ReadFile(filename)
 	return
-}
-
-func (openapi *Openapi) ValidateResponse(responseValidationInput *openapi3filter.ResponseValidationInput) (err error) {
-
-	body := openapi.Request.Response.Body
-	defer body.Close()
-	data, err := ioutil.ReadAll(body)
-	if err != nil {
-		return
-	}
-	responseValidationInput.SetBodyBytes(data)
-	err = openapi3filter.ValidateResponse(nil, responseValidationInput)
-	return
-
 }
 
 //FilterRequestParams filter request params

@@ -5,12 +5,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/suifengpiao14/openapi-validate/config"
-	"github.com/pkg/errors"
+	"github.com/suifengpiao14/openapi-validate/adapters"
 	"github.com/urfave/negroni"
 )
 
@@ -31,16 +29,27 @@ type ResponseBean struct {
 	Pagination *Pagination            `json:"pagination"`
 }
 
+var docFile = "doc/openapi.json"
+
 // ValidationRequest validate request params
 func ValidationRequest() negroni.Handler {
 	return negroni.HandlerFunc(func(res http.ResponseWriter, req *http.Request, next http.HandlerFunc) {
 
-		requestValidationInput, err := GetRequestValidationInput(req)
+		adapterOpenapi := &adapters.Openapi{
+			Request: req,
+		}
+		doc, err := adapterOpenapi.LoadDoc(docFile)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
+		adapterOpenapi.Doc = doc
 
+		requestValidationInput, err := adapterOpenapi.GetRequestValidationInput()
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := openapi3filter.ValidateRequest(nil, requestValidationInput); err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
@@ -54,9 +63,10 @@ func ValidationRequest() negroni.Handler {
 func ValidateResponse() negroni.Handler {
 	return negroni.HandlerFunc(func(res http.ResponseWriter, req *http.Request, next http.HandlerFunc) {
 		testRes := httptest.NewRecorder()
+		var err error
 		next(testRes, req) // 替换成httptest，方便后面获取返回体
 		respBody := testRes.Body.Bytes()
-		if testRes.Code != http.StatusOK { // 验证正常返回数据
+		if testRes.Code != http.StatusOK { // 非200状态数据不验证
 			res.WriteHeader(testRes.Code)
 			if _, err := res.Write(respBody); err != nil {
 				http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -65,34 +75,22 @@ func ValidateResponse() negroni.Handler {
 
 		}
 
-		requestValidationInput, err := GetRequestValidationInput(req)
+		adapterOpenapi := &adapters.Openapi{
+			Request: req,
+		}
+		adapterOpenapi.Doc, err = adapterOpenapi.LoadDoc(docFile)
+		responseValidationInput, err := adapterOpenapi.GetResponseValidationInput()
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var (
-			respStatus      = http.StatusOK
-			respContentType = "application/json"
-		)
-
-		responseValidationInput := &openapi3filter.ResponseValidationInput{
-			RequestValidationInput: requestValidationInput,
-			Status:                 respStatus,
-			Header: http.Header{
-				"Content-Type": []string{
-					respContentType,
-				},
-			},
-		}
-		responseValidationInput.SetBodyBytes(respBody)
-		err = openapi3filter.ValidateResponse(nil, responseValidationInput)
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusInternalServerError)
+		if err = openapi3filter.ValidateResponse(nil, responseValidationInput); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		res.WriteHeader(testRes.Code)
+		defer responseValidationInput.Body.Close()
 		// Read all
 		newRespBody, err := ioutil.ReadAll(responseValidationInput.Body)
 		if err != nil {
@@ -102,75 +100,8 @@ func ValidateResponse() negroni.Handler {
 		if _, err := res.Write(newRespBody); err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 		}
-
 		return
 	})
-}
-
-func LoadDoc(req *http.Request) (doc []byte, err error) {
-	filename := fmt.Sprintf("%s%s", config.ServerConfig.DocPath, "/openapi.json")
-	doc, err = ioutil.ReadFile(filename)
-	return
-}
-
-//GetRequestValidationInput get request validation input
-func GetRequestValidationInput(req *http.Request) (requestValidationInput *openapi3filter.RequestValidationInput, err error) {
-
-	doc, err := LoadDoc(req)
-	if err != nil {
-		return
-	}
-	_, router, err := LoadOpenAPI(req.RequestURI, doc)
-
-	if err != nil {
-		return
-	}
-
-	route, pathParams, err := router.FindRoute(req.Method, req.URL)
-	if err != nil {
-		return
-	}
-
-	requestValidationInput = &openapi3filter.RequestValidationInput{
-		Request:    req,
-		Route:      route,
-		PathParams: pathParams,
-	}
-	return
-}
-
-// Load the OpenAPI document and create the router.
-func LoadOpenAPI(uri string, data []byte) (swagger *openapi3.Swagger, router *openapi3filter.Router, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			swagger = nil
-			router = nil
-			if e, ok := r.(error); ok {
-				err = errors.Wrap(e, "Caught panic while trying to load")
-			} else {
-				err = fmt.Errorf("Caught panic while trying to load")
-			}
-		}
-	}()
-
-	loader := openapi3.NewSwaggerLoader()
-	loader.IsExternalRefsAllowed = true
-
-	var u *url.URL
-	u, err = url.Parse(uri)
-	if err != nil {
-		return
-	}
-
-	swagger, err = loader.LoadSwaggerFromDataWithPath(data, u)
-	if err != nil {
-		return
-	}
-
-	// Create a new router using the OpenAPI document's declared paths.
-	router = openapi3filter.NewRouter().WithSwagger(swagger)
-
-	return
 }
 
 //GetMessageFromRequestError 从json schema 验证错误中提取错误信息
