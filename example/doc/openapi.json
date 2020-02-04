@@ -44,8 +44,7 @@
           "description": "OK",
           "content":{
             "application/json":{
-              "schema":{"schema":{"$ref":"#/components/schemas/response"}
-            }
+              "schema":{"$ref":"#/components/schemas/response"}
             }
           }
         }
@@ -81,6 +80,11 @@
           "description": "业务状态说明",
           "type": "string"
         },
+        "data":{
+          "type":"object",
+          "description":"格式化后返回的数据",
+          "properties":{}
+        },
         "items":{
           "type":"array",
           "description":"记录集合",
@@ -93,16 +97,21 @@
           "type":"object",
           "description":"记录"
         },
-        "response": {
+        "response":{
+
+          "description":"错误提示或者格式化的json数据"
+        },
+        "responseStand": {
           "required": [
             "status",
-            "message"
+            "message",
+            "data"
           ],
+          "additionalProperties":false,
           "properties": {
             "status": {"$ref":"#/components/schemas/status"},
             "message": {"$ref":"#/components/schemas/message"},
-            "items":{"$ref":"#/components/schemas/items"},
-            "item":{"$ref":"#/components/schemas/item"}
+            "data":{"$ref":"#/components/schemas/data"}
           }
         }
       }
