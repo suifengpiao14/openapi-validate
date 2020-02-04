@@ -40,6 +40,13 @@ type JsonHTTP struct {
 	Response *JsonResponse `json:"response,omitempty"`
 }
 
+//HTTPResponse response format
+//type HTTPResponse struct {
+//	Status  int64 `json:"status"`
+//	Message string
+//	Data    interface{}
+//}
+
 //NewValidate new validate contoller
 func NewValidate() Validate {
 	return &validate{}
@@ -136,15 +143,28 @@ func (validate *validate) Response(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer newReq.Response.Body.Close()
-	key := "Content-Type"
-	headerMap := newReq.Response.Header
-	if headerMap != nil {
-		if value := newReq.Response.Header.Get(key); value != "" {
-			w.Header().Add(key, key)
+
+	if newReq.Response.Header != nil {
+		for key := range newReq.Response.Header {
+			value := newReq.Response.Header.Get(key)
+			w.Header().Add(key, value)
 		}
 	}
 
-	_, err = w.Write(data)
+	//	httpResponse := &HTTPResponse{
+	//		Status:  http.StatusOK,
+	//		Message: "ok",
+	//		Data:    data,
+	//	}
+	//	output, err := json.Marshal(httpResponse)
+	//	if err != nil {
+	//		http.Error(w, err.Error(), http.StatusInternalServerError)
+	//		return
+	//	}
+	if _, err := w.Write(data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	return
 }
 

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"net/textproto"
+
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/suifengpiao14/openapi-validate/adapters"
@@ -101,7 +103,7 @@ func ValidateResponse() negroni.Handler {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
-		res.WriteHeader(testRes.Code)
+
 		defer responseValidationInput.Body.Close()
 		// Read all
 		newRespBody, err := ioutil.ReadAll(responseValidationInput.Body)
@@ -109,6 +111,12 @@ func ValidateResponse() negroni.Handler {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		headerMap := testRes.Header()
+		for key := range headerMap {
+			value := textproto.MIMEHeader(headerMap).Get(key)
+			res.Header().Add(key, value)
+		}
+		res.WriteHeader(testRes.Code)
 		if _, err := res.Write(newRespBody); err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 		}
