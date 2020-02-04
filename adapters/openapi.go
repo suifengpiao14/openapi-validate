@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -47,6 +48,10 @@ func (openapi *Openapi) LoadDoc(location string) (doc []byte, err error) {
 		doc, err = ioutil.ReadAll(resp.Body)
 	}
 	filename := location
+	if _, err = os.Stat(filename); err != nil {
+		return
+	}
+
 	doc, err = ioutil.ReadFile(filename)
 	return
 }

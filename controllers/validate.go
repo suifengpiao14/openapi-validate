@@ -118,7 +118,12 @@ func (validate *validate) Response(w http.ResponseWriter, req *http.Request) {
 	adapterOpenapi := &adapters.Openapi{
 		Request: newReq,
 	}
-	adapterOpenapi.Doc, err = adapterOpenapi.LoadDoc(jsonHTTP.Doc)
+	doc, err := adapterOpenapi.LoadDoc(jsonHTTP.Doc)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	adapterOpenapi.Doc = doc
 	responseValidationInput, err := adapterOpenapi.GetResponseValidationInput()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
