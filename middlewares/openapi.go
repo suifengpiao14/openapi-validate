@@ -29,7 +29,8 @@ type ResponseBean struct {
 	Pagination *Pagination            `json:"pagination"`
 }
 
-var docFile = "doc/openapi.json"
+//DocBytes store openapi json
+var DocBytes []byte
 
 func init() {
 	// desabled details schema error
@@ -40,15 +41,15 @@ func init() {
 func ValidationRequest() negroni.Handler {
 	return negroni.HandlerFunc(func(res http.ResponseWriter, req *http.Request, next http.HandlerFunc) {
 
-		adapterOpenapi := &adapters.Openapi{
-			Request: req,
-		}
-		doc, err := adapterOpenapi.LoadDoc(docFile)
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusBadRequest)
+		if DocBytes == nil {
+			err := fmt.Errorf("openapi json schema not found")
+			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		adapterOpenapi.Doc = doc
+		adapterOpenapi := &adapters.Openapi{
+			Request: req,
+			Doc:     DocBytes,
+		}
 
 		requestValidationInput, err := adapterOpenapi.GetRequestValidationInput()
 		if err != nil {
@@ -80,10 +81,15 @@ func ValidateResponse() negroni.Handler {
 
 		}
 
+		if DocBytes == nil {
+			err := fmt.Errorf("openapi json schema not found")
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		adapterOpenapi := &adapters.Openapi{
 			Request: req,
+			Doc:     DocBytes,
 		}
-		adapterOpenapi.Doc, err = adapterOpenapi.LoadDoc(docFile)
 		responseValidationInput, err := adapterOpenapi.GetResponseValidationInput()
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)

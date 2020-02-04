@@ -34,7 +34,7 @@ type Openapi struct {
 
 //var bodyDecoders = make(map[string]openapi3filter.BodyDecoder)
 
-//LoadDoc load openapi doc
+//LoadDoc load openapi doc Deprecated
 func (openapi *Openapi) LoadDoc(location string) (doc []byte, err error) {
 	//if has prefix http ,get doc from url
 	if strings.HasPrefix(location, "http") {
